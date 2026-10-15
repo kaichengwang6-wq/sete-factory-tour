@@ -1,0 +1,13 @@
+.deployment/
+.openai/
+output/
+node_modules/
+*.skp
+*.skb
+*.pdf
+*.psd
+*.blend
+*.zip
+assets/source-placeholder.glb
+assets/source-underground.glb
+assets/source-gallery-existing-wall.glb

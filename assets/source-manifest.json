@@ -1,0 +1,48 @@
+{
+  "files": [
+    {
+      "url": "./assets/source-lower.glb",
+      "role": "building",
+      "triangles": 33725,
+      "bytes": 1516928,
+      "proposedDesignOpenings": true
+    },
+    {
+      "url": "./assets/source-upper.glb",
+      "role": "upper",
+      "triangles": 29714,
+      "bytes": 1435228
+    },
+    {
+      "url": "./assets/source-roof.glb",
+      "role": "roof",
+      "triangles": 33360,
+      "bytes": 197272,
+      "displayLOD": true
+    },
+    {
+      "url": "./assets/source-site.glb",
+      "role": "site",
+      "triangles": 29546,
+      "bytes": 992708,
+      "displayLOD": true
+    }
+  ],
+  "source": "202610.10-塞特精工一层.skp",
+  "coordinateSystem": "metres, Y up; x=X+737.041511, y=Z, z=154.403919-Y",
+  "displayCutHeight": 10.15,
+  "excludedOptionalAssets": [
+    "source-placeholder.glb",
+    "source-underground.glb",
+    "source-gallery-existing-wall.glb"
+  ],
+  "extensionsUsed": [
+    "EXT_mesh_gpu_instancing"
+  ],
+  "sourceGeometryPreserved": false,
+  "sourceOriginalsArchived": "output/source-archive",
+  "displayLODNote": "Repeated roof fixtures and small site details use source-bounds LOD; distant decorative entrance meshes omitted. Original extracted geometry retained in archive.",
+  "proposedDesignChanges": [
+    "Front and z=-18.8 crosswall logistics portals: 4.4m wide, 4.3m high. Existing structural columns retained."
+  ]
+}

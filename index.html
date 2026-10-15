@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#eef1f3">
+  <meta name="description" content="塞特精工厂房空间展示：从一层生产现场到夹层参观通道。">
+  <title>塞特精工 · 厂房空间展示</title>
+  <link rel="stylesheet" href="./style.css?v=20261015-bgm1">
+  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <main id="experience" aria-label="厂房三维展示">
+    <div id="viewport" tabindex="0" aria-label="三维视图。自动漫游默认关闭，可通过漫游开关手动开启；电脑可拖动观察、按 WASD 或方向键移动，手机可用左侧摇杆移动、右侧滑动观察。"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <header class="topbar interface">
+      <a class="brand" href="./" aria-label="塞特精工首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>塞特精工</strong><small>PRECISION MANUFACTURING</small></span></a>
+      <div class="project-label"><span>厂房空间展示</span><i></i><span>01 / 生产与参观</span></div>
+      <div class="auto-tour-state"><span class="live-dot" aria-hidden="true"></span><span id="autoTourStatus" role="status" aria-live="polite">漫游已关闭 · 手动开启</span></div>
+      <button class="stage-menu-button" id="stageMenuButton" aria-controls="stageGuide" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>选择空间</span></button>
+      <button class="subtle-button" id="referenceButton" title="查看原方案效果图"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1"/></svg>设计参考</button>
+    </header>
+
+    <aside class="guide interface" id="stageGuide" aria-label="展示导览">
+      <div class="eyebrow"><span class="live-dot"></span>SPACE EXPERIENCE <span id="stageNumber">01 / 07</span></div>
+      <h1 id="stageTitle">从整体，走入精工现场。</h1>
+      <p id="stageDescription">先看见厂房的全貌，再沿生产主轴进入现场，最后从夹层理解整个车间。</p>
+      <div class="stage-divider"></div>
+      <nav class="stage-list" id="stageList" aria-label="预设机位"></nav>
+      <div class="guide-footer"><span id="floorBadge">厂区鸟瞰</span><span id="viewBadge">整体视角</span></div>
+    </aside>
+
+    <div class="scene-caption interface" aria-hidden="true"><span id="sceneEnglish">THE BIG PICTURE</span><span id="sceneChinese">厂房 · 整体鸟瞰</span></div>
+    <div class="input-hint interface" id="inputHint" aria-label="电脑操作说明">
+      <span class="hint-group"><kbd>Space</kbd><span>漫游开关</span></span>
+      <span class="hint-group movement-hint"><kbd>W A S D</kbd><span class="hint-or">/</span><kbd>↑ ↓ ← →</kbd><span>移动</span></span>
+      <span class="hint-group"><span class="mouse-icon" aria-hidden="true"></span><span id="hintText">拖动观察 · 滚轮缩放</span></span>
+      <span class="hint-group"><kbd>H</kbd><span>隐藏界面</span></span>
+    </div>
+    <div class="touch-hint interface" id="touchHint"><span class="touch-walk-instructions">左侧摇杆移动 <i aria-hidden="true"></i> 右侧滑动观察</span><span class="touch-aerial-instructions">单指旋转 <i aria-hidden="true"></i> 双指缩放</span></div>
+
+    <div class="touch-controls" id="touchControls" aria-label="触屏漫游操作">
+      <div class="joystick-wrap interface"><span class="joystick-label">移动</span><div class="move-joystick" id="moveJoystick" role="group" aria-label="拖动摇杆前后左右移动"><span class="joystick-axis horizontal" aria-hidden="true"></span><span class="joystick-axis vertical" aria-hidden="true"></span><span class="joystick-knob" id="joystickKnob" aria-hidden="true"></span></div></div>
+      <button class="touch-pause-button" id="touchPauseButton" role="switch" aria-checked="false" aria-pressed="false" aria-label="开启自动漫游"><span class="tour-switch-track" aria-hidden="true"><span class="tour-switch-thumb"></span></span><span id="touchPauseLabel">开启自动漫游</span></button>
+    </div>
+
+    <section class="minimap-panel interface" id="minimapPanel" aria-label="空间定位图" hidden>
+      <div class="minimap-heading"><span>空间定位</span><button class="icon-button" id="closeMap" title="收起定位图" aria-label="收起定位图">×</button></div>
+      <canvas id="minimap" width="272" height="390" aria-label="显示当前楼层、参观路线和观察朝向的平面图"></canvas>
+      <div class="map-legend"><span><i class="legend-route"></i>参观环线</span><span><i class="legend-position"></i>当前位置</span></div>
+      <div class="map-location" id="mapLocation">鸟瞰视角</div>
+    </section>
+
+    <footer class="toolbar interface">
+      <div class="tour-controls"><button class="icon-button previous" id="previousButton" aria-label="上一步" title="上一步"><svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg></button><button class="primary-button" id="playButton"><span id="playLabel">开始演示</span><svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg></button><button class="icon-button" id="nextButton" aria-label="下一步" title="下一步"><svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg></button></div>
+      <button class="auto-tour-button" id="autoTourButton" role="switch" aria-checked="false" aria-pressed="false" aria-label="开启自动漫游" title="自动漫游开关（Space）"><span class="tour-switch-track" aria-hidden="true"><span class="tour-switch-thumb"></span></span><span id="autoTourLabel">开启自动漫游</span></button>
+      <div class="toolbar-divider"></div>
+      <div class="view-controls" role="group" aria-label="视角切换"><button class="tool-button active" id="aerialButton" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="m3 8 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 18l9 5 9-5"/></svg><span>鸟瞰</span></button><button class="tool-button" id="groundButton" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 21V5h16v16M8 21V9h8v12M2 21h20"/></svg><span>一层</span></button><button class="tool-button" id="mezzButton" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 20h5v-5h5v-5h5V5h3M3 5h11M3 9h6"/></svg><span>夹层</span></button></div>
+      <div class="toolbar-divider"></div>
+      <div class="display-controls"><button class="tool-button" id="roofButton" aria-pressed="false" title="鸟瞰时隐藏屋面"><svg viewBox="0 0 24 24"><path d="m2 10 10-7 10 7M5 10v11h14V10M9 21v-7h6v7"/></svg><span id="roofLabel">剖开屋面</span></button><button class="icon-button" id="mapButton" aria-label="显示空间定位图" aria-pressed="false" title="空间定位图"><svg viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16"/></svg></button><button class="icon-button" id="resetButton" aria-label="复位当前视角" title="复位视角"><svg viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg></button><button class="icon-button" id="fullscreenButton" aria-label="进入全屏" title="全屏展示"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button><button class="icon-button" id="hideButton" aria-label="隐藏界面" title="隐藏界面（H）"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path d="m3 3 18 18"/></svg></button></div>
+    </footer>
+    <button id="restoreButton" class="restore-button" hidden>显示导览 <kbd>H</kbd></button>
+    <section class="music-control" id="musicControl" aria-label="背景音乐控制">
+      <div class="music-buttons"><button type="button" class="music-toggle" id="musicToggleButton" aria-pressed="false" aria-label="播放音乐"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></svg><span id="musicToggleLabel">播放音乐</span></button><button type="button" class="music-volume-button" id="musicVolumeButton" aria-controls="musicVolumePanel" aria-expanded="false" aria-label="调节音乐音量" title="调节音乐音量"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button></div>
+      <div class="music-volume-panel" id="musicVolumePanel" hidden><div class="music-volume-heading"><label for="musicVolume">音乐音量</label><output id="musicVolumeValue" for="musicVolume">25%</output></div><input id="musicVolume" type="range" min="0" max="100" step="1" value="25" aria-label="背景音乐音量" aria-valuetext="25%"><p>关闭后不会随空间切换重新播放</p></div>
+      <span class="visually-hidden" id="musicStatus" role="status" aria-live="polite">开始展示时轻柔播放</span>
+    </section>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="loading-screen" id="loadingScreen" role="status" aria-live="polite">
+      <img class="loading-poster" src="./assets/reference-aerial.jpg" alt="原方案厂房鸟瞰效果图">
+      <div class="loading-wash"></div><div class="loading-card"><div class="loading-monogram">ST</div><span class="eyebrow">SETE · PRECISION MANUFACTURING</span><h2 id="loadingTitle">准备进入精工现场</h2><p id="loadingMessage">正在准备三维场景</p><div class="progress-track"><div id="progressBar"></div></div><span class="loading-note" id="loadingNote">背景为原方案效果图 · 载入后进入实时三维</span><button id="retryButton" class="primary-button" hidden>重新加载</button></div>
+    </div>
+    <dialog id="referenceDialog" class="reference-dialog" aria-labelledby="referenceTitle"><div class="reference-header"><div><span class="eyebrow">DESIGN REFERENCES</span><h2 id="referenceTitle">原方案效果图</h2><p>用于空间氛围与材质参考，以下图片并非网页三维实景截图。</p></div><button id="closeReference" class="icon-button" aria-label="关闭设计参考">×</button></div><div class="reference-tabs"><button class="active" data-reference="aerial">厂房鸟瞰</button><button data-reference="workshop">生产车间</button><button data-reference="window">观察窗界面</button></div><img id="referenceImage" src="./assets/reference-aerial.jpg" alt="原方案厂房鸟瞰效果图"><p class="reference-caption" id="referenceCaption">左侧大体量厂房为本次展示主体。</p></dialog>
+  </main>
+  <script type="module" src="./tour.js?v=20261015-delivery2"></script>
+</body>
+</html>
