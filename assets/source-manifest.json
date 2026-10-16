@@ -1,48 +1,56 @@
 {
+  "source": "202610.16-塞特精工方案模型给ai.skp",
+  "sourceRevision": "20261016",
   "files": [
     {
       "url": "./assets/source-lower.glb",
       "role": "building",
-      "triangles": 33725,
-      "bytes": 1516928,
-      "proposedDesignOpenings": true
+      "triangles": 33983,
+      "bytes": 1526320
     },
     {
       "url": "./assets/source-upper.glb",
       "role": "upper",
-      "triangles": 29714,
-      "bytes": 1435228
+      "triangles": 31774,
+      "bytes": 1374476
     },
     {
       "url": "./assets/source-roof.glb",
       "role": "roof",
-      "triangles": 33360,
-      "bytes": 197272,
-      "displayLOD": true
+      "triangles": 100,
+      "bytes": 5516
     },
     {
-      "url": "./assets/source-site.glb",
-      "role": "site",
-      "triangles": 29546,
-      "bytes": 992708,
-      "displayLOD": true
+      "url": "./assets/source-gallery.glb",
+      "role": "gallery",
+      "triangles": 2342,
+      "bytes": 91348
+    },
+    {
+      "url": "./assets/source-industrial-lights.glb",
+      "role": "industrial-lights",
+      "triangles": 344736,
+      "bytes": 137784
     }
   ],
-  "source": "202610.10-塞特精工一层.skp",
   "coordinateSystem": "metres, Y up; x=X+737.041511, y=Z, z=154.403919-Y",
   "displayCutHeight": 10.15,
-  "excludedOptionalAssets": [
-    "source-placeholder.glb",
-    "source-underground.glb",
-    "source-gallery-existing-wall.glb"
-  ],
   "extensionsUsed": [
     "EXT_mesh_gpu_instancing"
   ],
+  "excludedSourceRoots": [
+    "g0 old sign",
+    "g1 site",
+    "g3 cars",
+    "g6 equipment placeholders",
+    "g7 site"
+  ],
   "sourceGeometryPreserved": false,
-  "sourceOriginalsArchived": "output/source-archive",
-  "displayLODNote": "Repeated roof fixtures and small site details use source-bounds LOD; distant decorative entrance meshes omitted. Original extracted geometry retained in archive.",
+  "displayLODNote": "Industrial luminaire only uses a source-derived quadric LOD and 378 GPU instances; full prototype retained in output/model-20261016.",
   "proposedDesignChanges": [
-    "Front and z=-18.8 crosswall logistics portals: 4.4m wide, 4.3m high. Existing structural columns retained."
-  ]
+    "Two revalidated 4.4m x 4.3m logistics openings; original columns retained.",
+    "Three same-wall window backplates clipped exactly to original frame outer limits; original frames and clear apertures unchanged."
+  ],
+  "originalSKPUnchanged": true,
+  "audit": "output/model-20261016/source-audit.json"
 }

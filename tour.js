@@ -108,6 +108,40 @@ function toggleAuto() {
   keys.clear();resetJoystick();updateAutoInterface();
 }
 
+function bindAutoSwitch(button) {
+  if (!button) return;
+  let tap = null;
+  const handledTouches = new Set();
+  // A quick touch-look gesture can suppress Chromium's next compatibility click.
+  // Activate a genuine touch tap at pointerup, then ignore only its paired click.
+  // Mouse, keyboard and assistive-technology activation retain the native click.
+  button.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch' || !event.isPrimary) return;
+    tap = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+  });
+  button.addEventListener('pointermove', event => {
+    if (tap?.id === event.pointerId && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 12) tap.moved = true;
+  });
+  button.addEventListener('pointercancel', event => { if (tap?.id === event.pointerId) tap = null; });
+  button.addEventListener('pointerup', event => {
+    if (tap?.id !== event.pointerId) return;
+    const gesture = tap; tap = null;
+    const bounds = button.getBoundingClientRect();
+    if (gesture.moved || Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 12 ||
+        event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+    handledTouches.add(event.pointerId);
+    setTimeout(() => handledTouches.delete(event.pointerId), 2000);
+    event.preventDefault();
+    toggleAuto();
+  });
+  button.addEventListener('click', event => {
+    if (event.pointerType === 'touch' && handledTouches.has(event.pointerId)) {
+      handledTouches.delete(event.pointerId); event.preventDefault(); return;
+    }
+    toggleAuto();
+  });
+}
+
 function updateAuto(delta) {
   if(!autoPlaying||transitioning||document.hidden||$('referenceDialog').open)return;
   autoTime+=delta*AUTO_TOUR_SPEED;
@@ -259,8 +293,8 @@ function configureUI() {
   $('hideButton').addEventListener('click', () => toggleInterface(true));
   $('restoreButton').addEventListener('click', () => toggleInterface(false));
   $('fullscreenButton').addEventListener('click', toggleFullscreen);
-  $('autoTourButton')?.addEventListener('click',toggleAuto);
-  $('touchPauseButton')?.addEventListener('click',toggleAuto);
+  bindAutoSwitch($('autoTourButton'));
+  bindAutoSwitch($('touchPauseButton'));
   $('stageMenuButton')?.addEventListener('click',()=>{
     const expanded=document.body.classList.toggle('stage-menu-open');
     $('stageMenuButton').setAttribute('aria-expanded',String(expanded));
@@ -466,7 +500,7 @@ async function initialize() {
     const fill = new THREE.DirectionalLight('#eef1f5', .11); fill.position.set(75, 50, -170); scene.add(fill);
     const bounce = new THREE.DirectionalLight('#eeece4', .32); bounce.position.set(0,-20,-80);bounce.target.position.set(0,8,-80);scene.add(bounce,bounce.target);
     progress(.08, '正在读取厂房模型与材质');
-    const { createFactoryScene } = await import('./scene.js?v=20261015-delivery2');
+    const { createFactoryScene } = await import('./scene.js?v=20261016-model1');
     model = await createFactoryScene(THREE, scene, progress);
     if (!model) throw new Error('场景初始化未返回模型数据');
     floorReflection=createFloorReflection(THREE,renderer,scene,scene.getObjectByName('Finished_ground_floor'));
@@ -507,6 +541,16 @@ function fail(error) {
 }
 
 window.__tourDebug = {
+  inputState() { return { dragging, lookPointerId, joystickPointerId, transitioning, lookDirection: camera ? camera.getWorldDirection(new THREE.Vector3()).toArray() : null }; },
+  modelInfo() {return model ? {...model.metadata, sourceFiles:model.sourceManifest.files.map(f=>({url:f.url,role:f.role}))} : null;},
+  sceneAudit() {
+    const lights=[],objects=[];
+    scene?.traverse(object=>{
+      if(object.isLight)lights.push({name:object.name,type:object.type,position:object.position.toArray(),sourceId:object.userData.sourceId??null,cct:object.userData.designCCT??null});
+      if(object.name && !/^src_|^mesh_|^node_/i.test(object.name))objects.push({name:object.name,type:object.type,count:object.isInstancedMesh?object.count:1,visible:object.visible});
+    });
+    return {lights,objects};
+  },
   snapshot() { return { ready, stage: currentStage, stageId: STAGES[currentStage].id, floor, pos: camera ? camera.position.toArray() : null, target: orbit ? orbit.target.toArray() : null, roofHidden, fps, ...stats, rendererName, renderScale, pixelRatio: renderer?.getPixelRatio() ?? null, shadowAutoUpdate: renderer?.shadowMap.autoUpdate ?? null, colliderCount: colliders.length, errors: [...loadingErrors], currentPositionBlocked: ready && floor !== 'aerial' ? isBlocked(camera.position.x, camera.position.z, floor, colliders) : false, autoPlaying, autoTime, autoPauseReason,autoSpeed:AUTO_TOUR_SPEED,routeAudit,people:0,joystick:{...joystickAxes},bgm:bgm.snapshot() }; },
   async freshStats(durationMs = 2000) {
     const startedAt = performance.now(), initialFrames = totalRenderedFrames;

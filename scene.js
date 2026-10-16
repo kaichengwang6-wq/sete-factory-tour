@@ -4,11 +4,12 @@ import { instantiateMachines, instantiateAccessories } from './equipment.js';
 // The source shell and placements are extracted from the supplied SketchUp model.
 // New finish and equipment elements are an explicitly separate design layer.
 export async function createFactoryScene(T, scene, onProgress = () => {}) {
-  const [manifest, layout, sourceWindows, sourceLuminaires] = await Promise.all([
-    fetch('./assets/source-manifest.json').then(r => { if (!r.ok) throw new Error('原模型清单加载失败'); return r.json(); }),
-    fetch('./assets/layout.json').then(r => { if (!r.ok) throw new Error('空间布局加载失败'); return r.json(); }),
-    fetch('./assets/source-inner-window-openings.json').then(r => { if (!r.ok) throw new Error('观察窗定位加载失败'); return r.json(); }),
-    fetch('./assets/source-luminaire-emitting-faces.json').then(r => { if (!r.ok) throw new Error('灯具定位加载失败'); return r.json(); }),
+  const [manifest, layout, sourceWindows, sourceLuminaires, sourceRoof] = await Promise.all([
+    fetch('./assets/source-manifest.json?v=20261016-model1').then(r => { if (!r.ok) throw new Error('原模型清单加载失败'); return r.json(); }),
+    fetch('./assets/layout.json?v=20261016-model1').then(r => { if (!r.ok) throw new Error('空间布局加载失败'); return r.json(); }),
+    fetch('./assets/source-inner-window-openings.json?v=20261016-model1').then(r => { if (!r.ok) throw new Error('观察窗定位加载失败'); return r.json(); }),
+    fetch('./assets/source-industrial-lights.json?v=20261016-model1').then(r => { if (!r.ok) throw new Error('灯具定位加载失败'); return r.json(); }),
+    fetch('./assets/source-roof-layout.json?v=20261016-model1').then(r => { if (!r.ok) throw new Error('屋面定位加载失败'); return r.json(); }),
   ]);
   // A local indirect-light approximation for the enclosed visitor circuit. It enters
   // diffuse irradiance (not emissive), so the material BRDF, AO and direct shadows remain.
@@ -62,7 +63,7 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
   // Fetch the independent building parts together so remote latency is not paid
   // once for each model. Keep insertion order deterministic for the scene.
   const sourceModels = await Promise.all(manifest.files.map(async (entry) => {
-    const gltf = await loader.loadAsync(entry.url);
+    const gltf = await loader.loadAsync(`${entry.url}?v=20261016-model1`);
     loaded++;
     onProgress(loaded / (manifest.files.length + 2), `正在载入原厂房结构 · ${loaded}/${manifest.files.length}`);
     return { entry, gltf };
@@ -78,13 +79,11 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
         // SketchUp RGB swatches are exported as normalized bytes; convert them once.
         if (!correctedMaterials.has(m)) {
           m.color?.convertSRGBToLinear();correctedMaterials.add(m);
-          if(entry.role==='building' && m.opacity>=1 && m.isMeshStandardMaterial)galleryIndirect(m,.62);
+          if(['building','gallery'].includes(entry.role) && m.opacity>=1 && m.isMeshStandardMaterial)galleryIndirect(m,.62);
         }
         m.roughness = Math.max(m.roughness ?? 0.7, 0.55);
         m.metalness = Math.min(m.metalness ?? 0, 0.35);
-        if (m.name === 'Lampn__Emissive') {
-          m.color.set(0xf7f9ff);m.emissive.set(0xf1f5ff);m.emissiveIntensity=2.2;m.roughness=.62;
-        }
+        if (entry.role === 'industrial-lights') { m.roughness=.48;m.metalness=.38; }
         if (entry.role==='upper' && /^\[Color M0[78]\]$/.test(m.name)) m.color.set(0x899093);
         if (m.opacity < 1) {
           m.transparent=true;m.opacity=Math.min(m.opacity,.18);m.depthWrite=false;
@@ -97,8 +96,8 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
   }
   onProgress(.72, '正在布置精密机床与参观空间');
   const design = new T.Group(); design.name = 'Interior_design_proposal'; scene.add(design);
-  const exterior = new T.Group(); exterior.name = 'Landscape_and_context'; scene.add(exterior);
-  const roof = new T.Group(); roof.name = 'Proposed_roof_and_solar'; scene.add(roof); roofGroups.push(roof);
+  const exterior = new T.Group(); exterior.name = 'Neutral_presentation_ground'; scene.add(exterior);
+  const roof = new T.Group(); roof.name = 'Roof_solar_panels'; scene.add(roof); roofGroups.push(roof);
   const mats = {
     white: new T.MeshStandardMaterial({color:0xf0f2f2,roughness:.76}),
     ceiling: new T.MeshStandardMaterial({color:0xf5f6f6,roughness:.73}),
@@ -110,8 +109,6 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
     walkway: new T.MeshStandardMaterial({color:0xb9c0c2,roughness:.76,metalness:.02}),
     light: new T.MeshStandardMaterial({color:0xfff3df,emissive:0xffddb0,emissiveIntensity:1.65,roughness:.65}),
     workLight: new T.MeshStandardMaterial({color:0xf7f9ff,emissive:0xf1f5ff,emissiveIntensity:2.0,roughness:.65}),
-    green: new T.MeshStandardMaterial({color:0x56705b,roughness:1}),
-    bark: new T.MeshStandardMaterial({color:0x787467,roughness:1}),
     solar: new T.MeshStandardMaterial({color:0x263e55,metalness:.4,roughness:.35}),
   };
   // Separate gallery finishes leave work-light fixtures and exterior metalwork neutral.
@@ -175,53 +172,72 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
   const galleryLightLines=batch(design,mats.light,led);
   galleryLightLines.name='Gallery_recessed_warm_white_lines';
   galleryLightLines.castShadow=false;galleryLightLines.receiveShadow=false;
-  const glassMat = new T.MeshPhysicalMaterial({color:0xf4f8f8,metalness:0,roughness:.1,transparent:true,opacity:.035,depthWrite:false,side:T.DoubleSide});
-  const ribs=[],frames=[],walls=[];
-  function galleryWall(axis,constant,start,end,sourceSide){
-    const alongX=axis==='x',length=end-start,center=(start+end)/2;
-    const add=(arr,len,h,t,c,y)=>arr.push(alongX?[len,h,t,c,y,constant]:[t,h,len,constant,y,c]);
-    // A complete metal-clad wall, with closed four-sided window reveals.
-    // All parts share the same wall plane. The sill, piers and head overlap the frame.
-    const base=5.105, sill=5.915, head=7.99, top=8.40, frame=.095;
-    const bottomH=sill-base, topH=top-head, openingH=head-sill;
-    add(walls,length,bottomH,.20,center,(base+sill)/2);
-    add(walls,length,topH,.20,center,(head+top)/2);
-    const ribBand=(lo,hi,y0,y1)=>{
-      for(let q=lo+.025;q<hi-.015;q+=.065)add(ribs,.012,y1-y0,.218,q,(y0+y1)/2);
-    };
-    ribBand(start,end,base,sill);ribBand(start,end,head,top);
-    const openings=sourceWindows.groups[sourceSide].map(w=>w.span)
-      .filter(([a,b])=>b>start && a<end)
-      .map(([a,b])=>[Math.max(start+.15,a),Math.min(end-.15,b)])
-      .sort((a,b)=>a[0]-b[0]);
-    let cursor=start;
-    const infill=(a,b)=>{if(b-a<.005)return;add(walls,b-a,openingH,.20,(a+b)/2,(sill+head)/2);ribBand(a,b,sill,head);};
-    for(const [a,b] of openings){
-      infill(cursor,a);cursor=b;
-      const winWidth=b-a;
-      // Frame extends into the surrounding cladding on every edge, leaving no reveal gap.
-      add(frames,winWidth+frame,frame,.27,(a+b)/2,sill);
-      add(frames,winWidth+frame,frame,.27,(a+b)/2,head);
-      add(frames,frame,openingH,.27,a,(sill+head)/2);
-      add(frames,frame,openingH,.27,b,(sill+head)/2);
-      const window=alongX?box(design,glassMat,winWidth-frame,openingH-frame,.025,(a+b)/2,(sill+head)/2,constant):box(design,glassMat,.025,openingH-frame,winWidth-frame,constant,(sill+head)/2,(a+b)/2);
-      window.castShadow=false;window.receiveShadow=false;window.name='Observation_glass';glassGroups.push(window);
-      if(winWidth>7)add(frames,.035,openingH-frame,.12,(a+b)/2,(sill+head)/2);
+  // The new SKP supplies the one authoritative wall and frame assembly, including
+  // its actual openings and the upper boundary at 8.85 m. Do not overlay new walls.
+  const sourceGallery=scene.getObjectByName('Original_gallery');
+  if(!sourceGallery)throw new Error('参观廊原模型资源缺失。');
+  const finishedGalleryMaterials=new Set();
+  sourceGallery.traverse(mesh=>{
+    if(!mesh.isMesh)return;
+    mesh.userData.sourceGallery=true;
+    for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){
+      if(finishedGalleryMaterials.has(material))continue;
+      finishedGalleryMaterials.add(material);
+      const silverFrame=/^\[Color M0[17]\]$/.test(material.name);
+      // Keep the existing indirect-light shader hook while changing only the finish.
+      material.color.set(silverFrame?0xc0c7ca:0xf1f0ec);
+      material.metalness=silverFrame ? .55 : .015;
+      material.roughness=silverFrame ? .43 : .86;
+      material.envMapIntensity=silverFrame ? .65 : .75;
+      material.userData.galleryFinish=silverFrame?'silver_frame':'matte_white_wall';
+      material.needsUpdate=true;
     }
-    infill(cursor,end);
+  });
+  const glassMat=new T.MeshPhysicalMaterial({color:0xf5f8f8,metalness:0,roughness:.14,
+    transparent:true,opacity:.035,depthWrite:false,side:T.DoubleSide,
+    ior:1.45,reflectivity:.12,specularIntensity:.12,envMapIntensity:.18});
+  glassMat.forceSinglePass=true;
+  const glassGeometry=new T.PlaneGeometry(1,1),seenWindowBounds=new Set();
+  const observationGlazing=new T.Group();observationGlazing.name='Source_observation_glazing';design.add(observationGlazing);
+  for(const [side,windows] of Object.entries(sourceWindows.groups)){
+    for(const opening of windows){
+      const {min,max,clearMin,clearMax}=opening;
+      if(![min,max,clearMin,clearMax].every(v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)))
+        throw new Error('观察窗净尺寸缺失，请更新模型资源。');
+      const key=[...min,...max].map(v=>v.toFixed(5)).join(',');
+      if(seenWindowBounds.has(key))continue;
+      seenWindowBounds.add(key);
+      const alongZ=side==='left'||side==='right',spanAxis=alongZ?2:0;
+      const width=clearMax[spanAxis]-clearMin[spanAxis],height=clearMax[1]-clearMin[1];
+      if(width<=0||height<=0)throw new Error('观察窗净尺寸无效。');
+      const pane=new T.Mesh(glassGeometry,glassMat);
+      // A 1 mm overlap under each source reveal closes the glazing edge without
+      // changing the visible opening; one plane avoids doubled glass reflections.
+      pane.scale.set(width+.002,height+.002,1);
+      pane.position.set((min[0]+max[0])/2,(clearMin[1]+clearMax[1])/2,(min[2]+max[2])/2);
+      pane.position.setComponent(spanAxis,(clearMin[spanAxis]+clearMax[spanAxis])/2);
+      if(alongZ)pane.rotation.y=Math.PI/2;
+      pane.name='Observation_glass';pane.userData.sourceWindow=opening.id??opening.path;
+      pane.userData.clearMin=[...clearMin];pane.userData.clearMax=[...clearMax];
+      pane.castShadow=false;pane.receiveShadow=false;pane.renderOrder=3;
+      observationGlazing.add(pane);glassGroups.push(pane);
+    }
   }
-  galleryWall('z',left,innerBack,frontInner,'left');
-  galleryWall('z',right,innerBack,frontInner,'right');
-  galleryWall('x',frontInner,left,right,'front');
-  galleryWall('x',innerBack,left,right,'back');
-  batch(design,mats.rib,walls);batch(design,mats.gallerySilver,ribs);batch(design,mats.gallerySilver,frames);
+  observationGlazing.userData.windowCount=seenWindowBounds.size;
+  // The navigation ring remains authoritative. These same 200 mm source wall
+  // boundaries also prevent walking through glazing, and apply only upstairs.
+  const galleryFloor=g.floorTop??5.1,galleryWallTop=9.85,galleryWallThickness=sourceWindows.wallThickness??.2;
+  rectangleCollider(left+galleryWallThickness/2,(innerBack+frontInner)/2,galleryWallThickness,frontInner-innerBack,galleryFloor,galleryWallTop,['mezzanine']);
+  rectangleCollider(right-galleryWallThickness/2,(innerBack+frontInner)/2,galleryWallThickness,frontInner-innerBack,galleryFloor,galleryWallTop,['mezzanine']);
+  rectangleCollider((left+right)/2,frontInner-galleryWallThickness/2,right-left,galleryWallThickness,galleryFloor,galleryWallTop,['mezzanine']);
+  rectangleCollider((left+right)/2,innerBack+galleryWallThickness/2,right-left,galleryWallThickness,galleryFloor,galleryWallTop,['mezzanine']);
   // A 100 mm flush skirting finishes the solid window-wall base without changing its openings.
   const skirtingY=finishFloor+.0625;
   const skirting=batch(design,mats.gallerySilver,[
-    [.035,.10,frontInner-innerBack,left-.1175,skirtingY,(frontInner+innerBack)/2],
-    [.035,.10,frontInner-innerBack,right+.1175,skirtingY,(frontInner+innerBack)/2],
-    [right-left,.10,.035,0,skirtingY,frontInner+.1175],
-    [right-left,.10,.035,0,skirtingY,innerBack-.1175],
+    [.035,.10,frontInner-innerBack,left-.0175,skirtingY,(frontInner+innerBack)/2],
+    [.035,.10,frontInner-innerBack,right+.0175,skirtingY,(frontInner+innerBack)/2],
+    [right-left,.10,.035,0,skirtingY,frontInner+.0175],
+    [right-left,.10,.035,0,skirtingY,innerBack-.0175],
   ]);
   skirting.name='Gallery_100mm_metal_skirting';skirting.castShadow=false;
 
@@ -229,17 +245,17 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
   const machines=[],carts=[],shadows=[],cellLines=[];
   const sourceCells=layout.equipment??[];
   for(let i=0;i<sourceCells.length;i++){
-    const cell=sourceCells[i],x=cell.center[0],z=cell.center[2];
+    const cell=sourceCells[i],x=cell.center[0],z=cell.center[2],displayIndex=cell.displayIndex??i;
     const count=cell.depth>=6.8?2:1;
     for(let j=0;j<count;j++){
-      const zz=z+(count===2?(j===0?-2.05:2.05):0),rotation=(i%2===0?0:Math.PI);
-      machines.push({x,z:zz,y:.045,rotation,type:(i+j)%3});
+      const zz=z+(count===2?(j===0?-2.05:2.05):0),rotation=(displayIndex%2===0?0:Math.PI);
+      machines.push({x,z:zz,y:.045,rotation,type:(displayIndex+j)%3});
       rectangleCollider(x,zz,2.8,3.2,.02,3.0);
       shadows.push([3.4,1,3.9,x,.052,zz]);
     }
     const halfW=Math.min(cell.width/2,2.1),halfD=Math.min(cell.depth/2,4.5);
     cellLines.push([.04,.008,halfD*2,x-halfW,.05,z],[.04,.008,halfD*2,x+halfW,.05,z],[halfW*2,.008,.04,x,.05,z-halfD],[halfW*2,.008,.04,x,.05,z+halfD]);
-    if(i%3===0)carts.push({x:x+1.45,z:z+.3,rotation:Math.PI/2});
+    if(displayIndex%3===0)carts.push({x:x+1.45,z:z+.3,rotation:Math.PI/2});
   }
   design.add(instantiateMachines(T,machines));design.add(instantiateAccessories(T,{carts,workers:[]}));
   batch(design,mats.line,cellLines);
@@ -263,35 +279,36 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
   const lane=[];
   for(const side of [-1,1]) lane.push([.055,.012,187,aisleX+side*2.18,.058,-93.5]);
   batch(design,mats.line,lane);
-  const fixtures=[],emitters=[];
-  for(let z=-13;z>-164;z-=13.1){
-    for(const x of [-33,-17,0,17,33]){
-      fixtures.push([.24,.075,3.2,x,8.74,z]);emitters.push([.15,.03,3.0,x,8.689,z]);
-    }
-  }
-  batch(roof,mats.silver,fixtures);
-  const workLightLines=batch(roof,mats.workLight,emitters);
-  workLightLines.name='Workshop_neutral_white_linear_fixtures';
-  workLightLines.castShadow=false;workLightLines.receiveShadow=false;
-  // The LOD lamp housing extends 3mm past its source luminous face. This overlay
-  // restores the original emitting aperture 3mm below the housing, at its true plan position.
-  const originalLightFaces=sourceLuminaires.lights.map(l=>[l.width,1,l.depth,l.center[0],l.proposedFaceY,l.center[2]]);
+  // Each luminous aperture belongs to one unique pendant from the revised SKP.
+  // The source housing uses shared geometry; no extra visible fixtures are invented.
+  const lightGroup=new T.Group();lightGroup.name='Workshop_source_light_apertures';design.add(lightGroup);
+  const originalLightFaces=sourceLuminaires.lights.map(l=>[
+    l.emitterRadius,1,l.emitterRadius,l.emitterCenter[0],l.emitterCenter[1]-.003,l.emitterCenter[2],
+  ]);
   const luminousMaterial=new T.MeshBasicMaterial({color:new T.Color(3.45,3.52,3.65),side:T.DoubleSide});
-  const luminousGeometry=new T.PlaneGeometry(1,1);luminousGeometry.rotateX(Math.PI/2);
-  const luminousBatch=batch(roof,luminousMaterial,originalLightFaces,luminousGeometry);
+  const luminousGeometry=new T.CircleGeometry(1,32);luminousGeometry.rotateX(Math.PI/2);
+  const luminousBatch=batch(lightGroup,luminousMaterial,originalLightFaces,luminousGeometry);
+  luminousBatch.name='Source_378_white_light_apertures';
   luminousBatch.castShadow=false;luminousBatch.receiveShadow=false;
-  // Approximately 4800 K design intent: neutral task light, separate from the warm visitor circuit.
-  // Six existing static shadow maps retain machine/column depth; no additional shadow lights.
+  // Sample the real lamp positions for bounded realtime lighting. All 378 apertures
+  // remain visible, while six static shadow maps model the combined task illumination.
+  function nearestLamp(x,z){
+    return sourceLuminaires.lights.reduce((best,light)=>
+      Math.hypot(light.emitterCenter[0]-x,light.emitterCenter[2]-z)<Math.hypot(best.emitterCenter[0]-x,best.emitterCenter[2]-z)?light:best
+    );
+  }
   for(const z of [-28,-73,-118])for(const x of [-24,24]){
-    const l=new T.SpotLight(0xf1f5ff,275,60,1.22,.90,2);l.position.set(x,8.55,z);l.target.position.set(x,0,z-3);
-    l.name='Workshop_neutral_task_light';l.userData.designCCT=4800;
+    const source=nearestLamp(x,z),p=source.emitterCenter;
+    const l=new T.SpotLight(0xf1f5ff,275,60,1.22,.90,2);l.position.set(p[0],p[1]-.035,p[2]);l.target.position.set(p[0],0,p[2]);
+    l.name='Workshop_source_4800K_task_light';l.userData.designCCT=4800;l.userData.sourceId=source.id;
     l.castShadow=true;l.shadow.mapSize.set(1024,1024);l.shadow.camera.near=.4;l.shadow.camera.far=58;
     l.shadow.bias=-.00012;l.shadow.normalBias=.025;l.shadow.radius=3;scene.add(l,l.target);
   }
-  // Restrained neutral fill from the side walls. The task spots already cover the central aisle.
+  // Broad bounced light uses the outer source fixtures, with no new wall-mounted fittings.
   for(const z of [-28,-73,-118])for(const x of [-41,41]){
-    const l=new T.PointLight(0xf0f4ff,72,37,2);l.position.set(x,4.6,z);
-    l.name='Workshop_neutral_side_fill';l.userData.designCCT=5000;scene.add(l);
+    const source=nearestLamp(x,z),p=source.emitterCenter;
+    const l=new T.PointLight(0xf1f5ff,72,37,2);l.position.set(p[0],p[1]-.035,p[2]);
+    l.name='Workshop_source_4800K_bounce';l.userData.designCCT=4800;l.userData.sourceId=source.id;scene.add(l);
   }
   // 3300 K visitor lighting: downward wide soft cones sit beneath the real inner LED lines.
   // Keeping every cone below the ceiling removes the former near-field white ceiling blobs.
@@ -328,35 +345,39 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
     box(design,mats.silver,.13,4.32,.2,2.27,2.16,z);
     box(design,mats.silver,4.67,.15,.23,0,4.38,z);
     box(design,mats.white,4.6,.37,.38,0,4.65,z);
-    const portalLight=box(design,mats.workLight,4.25,.04,.065,0,4.27,z+.14);
-    portalLight.castShadow=false;portalLight.receiveShadow=false;
   }
 
-  // Roof and environmental context use lightweight instances rather than unrelated detailed assets.
-  box(roof,mats.white,96.2,.22,191.4,0,25.58,-95.4);
+  // The actual roof is supplied by the revised model at +23.60 m. Solar panels
+  // sit directly above it and leave the new rooftop structure unobstructed.
   const panels=[],panelRails=[];
-  for(let x=-44;x<44;x+=3.5)for(let z=-10;z>-180;z-=6.8){panels.push([3.25,.06,6.3,x,25.74,z]);panelRails.push([.025,.008,6.3,x,25.778,z]);for(let dz=-2;dz<=2;dz+=2)panelRails.push([3.25,.008,.018,x,25.778,z+dz]);}
+  const roofTop=sourceRoof.roofPlane.y;
+  const roofObstacles=[...sourceRoof.obstacles.map(o=>o.web_bounds_m),...sourceRoof.rootAppendages.map(o=>o.bounds)];
+  for(let x=-44;x<44;x+=3.5)for(let z=-10;z>-180;z-=6.8){
+    if(roofObstacles.some(([min,max])=>x+1.625>min[0]-.5 && x-1.625<max[0]+.5 && z+3.15>min[2]-.5 && z-3.15<max[2]+.5))continue;
+    panels.push([3.25,.06,6.3,x,roofTop+.10,z]);panelRails.push([.025,.008,6.3,x,roofTop+.138,z]);
+    for(let dz=-2;dz<=2;dz+=2)panelRails.push([3.25,.008,.018,x,roofTop+.138,z+dz]);
+  }
   batch(roof,mats.solar,panels);batch(roof,mats.silver,panelRails);
-  // Broad neutral ground and a quiet tree belt frame the selected building.
-  const ground=new T.Mesh(new T.PlaneGeometry(1600,1600),new T.MeshStandardMaterial({color:0xb9c4bc,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.set(0,-.18,-70);ground.receiveShadow=true;exterior.add(ground);
-  const pavement=new T.MeshStandardMaterial({color:0x7d888b,roughness:1});
-  box(exterior,pavement,15,.04,272,65,-.07,-92);box(exterior,pavement,165,.04,14,0,-.07,26);box(exterior,pavement,165,.04,14,0,-.07,-212);
-  const roadLines=[];for(let z=32;z>-210;z-=7)roadLines.push([.12,.01,3.2,65,-.042,z]);for(let x=-72;x<75;x+=7)roadLines.push([3.2,.01,.12,x,-.042,26]);batch(exterior,mats.ceiling,roadLines);
-  const trunks=[],crowns=[];
-  for(let i=0;i<33;i++){const z=18-i*7.5;for(const x of [-83,78]){trunks.push([.35,3.8,.35,x,1.8,z]);crowns.push([2.0,2.7,2.0,x,4.8,z]);}}
-  batch(exterior,mats.bark,trunks);batch(exterior,mats.green,crowns,new T.IcosahedronGeometry(1,1));
-  // The adjacent glass block is context only, without invented interior floors.
-  const ctxGlass=new T.MeshStandardMaterial({color:0x90a9b5,metalness:.35,roughness:.3});
-  const cx=11,cz=45;
-  box(exterior,ctxGlass,70,12,23,cx,6,cz);
-  box(exterior,mats.white,71,.35,24,cx,12.1,cz);
-  const mullions=[];for(let x=cx-35;x<=cx+35;x+=2.5){mullions.push([.10,12,.16,x,6,cz+11.6],[.10,12,.16,x,6,cz-11.6]);}for(let y=1;y<12;y+=3.7)mullions.push([70,.12,.16,cx,y,cz+11.6]);batch(exterior,mats.silver,mullions);
+  const ground=new T.Mesh(new T.PlaneGeometry(1600,1600),new T.MeshStandardMaterial({color:0xd2d5d6,roughness:1}));
+  ground.name='Plain_light_gray_shadow_ground';ground.rotation.x=-Math.PI/2;ground.position.set(0,-.18,-70);ground.receiveShadow=true;exterior.add(ground);
 
   // Minimal wayfinding printed in the actual model, not fabricated live process metrics.
   function label(text,sub,width=6){
     const c=document.createElement('canvas');c.width=1024;c.height=256;const x=c.getContext('2d');x.fillStyle='#edf1f1';x.fillRect(0,0,1024,256);x.fillStyle='#34434a';x.font='500 72px "Microsoft YaHei", sans-serif';x.fillText(text,50,114);x.fillStyle='#7a8b91';x.font='24px Arial';x.fillText(sub,52,179);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;return new T.Mesh(new T.PlaneGeometry(width,width/4),new T.MeshStandardMaterial({map:tex,roughness:.8}));
   }
-  const sign=label('塞特精工','PRECISION MANUFACTURING',12);sign.position.set(0,6.3,.55);scene.add(sign);
+  const logoTexture=await new T.TextureLoader().loadAsync('./assets/sat-logo.png');
+  logoTexture.colorSpace=T.SRGBColorSpace;logoTexture.anisotropy=8;
+  const logoMaterial=new T.MeshStandardMaterial({map:logoTexture,roughness:.78,metalness:0});
+  function brandSign(width,name){
+    const sign=new T.Mesh(new T.PlaneGeometry(width,width*129/476),logoMaterial);
+    sign.name=name;sign.receiveShadow=true;return sign;
+  }
+  const sign=brandSign(12,'SAT_entrance_sign');sign.position.set(0,6.3,.55);scene.add(sign);
+  // Preserve the original rear facade sign's position and height, with the artwork
+  // fitted proportionally instead of stretching it across the old wide image panel.
+  const [signMin,signMax]=sourceRoof.removedSignBounds[0];
+  const rearSign=brandSign((signMax[1]-signMin[1])*476/129,'SAT_original_rear_facade_sign');
+  rearSign.position.set((signMin[0]+signMax[0])/2,(signMin[1]+signMax[1])/2,signMin[2]-.005);rearSign.rotation.y=Math.PI;scene.add(rearSign);roofGroups.push(rearSign);
   const gallerySign=label('参观通道','OBSERVATION GALLERY',3.8);gallerySign.position.set(-47.35,6.7,-11);gallerySign.rotation.y=Math.PI/2;design.add(gallerySign);
   // Small process-view labels are mounted on the existing solid sill bands, never across glass.
   for(const [text,sub,z,side] of [
@@ -365,10 +386,10 @@ export async function createFactoryScene(T, scene, onProgress = () => {}) {
     ['03  物流主轴','LOGISTICS SPINE',-116,1],
   ]){
     const plaque=label(text,sub,1.6);
-    plaque.position.set(side<0?left-.137:right+.137,5.59,z);
+    plaque.position.set(side<0?left-.003:right+.003,5.59,z);
     plaque.rotation.y=side*Math.PI/2;plaque.name='Gallery_process_view_label';
     plaque.receiveShadow=true;plaque.castShadow=false;design.add(plaque);
   }
   onProgress(1,'三维空间已准备就绪');
-  return {roofGroups,glassGroups,colliders,layout,sourceManifest:manifest,design,metadata:{cells:sourceCells.length,machines:machines.length,mezzanineLevel:5.1}};
+  return {roofGroups,glassGroups,colliders,layout,sourceManifest:manifest,design,metadata:{cells:sourceCells.length,machines:machines.length,mezzanineLevel:5.1,sourceLamps:sourceLuminaires.count,revision:'20261016',homepageBackground:'unchanged'}};
 }

@@ -254,3 +254,28 @@ button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .music-control * { transition-duration: .01ms !important; }
 }
+/* The supplied SAT artwork is used intact, in its original colour and ratio. */
+.brand { gap: 0; padding: 4px 8px; border: 1px solid rgba(255,255,255,.95); border-radius: 4px; background: #fff; line-height: 0; box-shadow: 0 2px 12px #26445308; }
+.brand-logo { display: block; width: 228px; max-width: 100%; height: auto; object-fit: contain; flex-shrink: 0; }
+.loading-brand { width: fit-content; max-width: 100%; padding: 8px 12px; margin-bottom: 26px; border: 1px solid #fff; border-radius: 4px; background: #fff; }
+.loading-brand-logo { display: block; width: 320px; max-width: 100%; height: auto; object-fit: contain; }
+@media (max-width: 1200px) {
+  .brand-logo { width: 198px; }
+}
+@media (max-width: 920px), (pointer: coarse) {
+  .brand { padding: 3px 6px; }
+  .brand-logo { width: 180px; }
+}
+@media (max-width: 620px) {
+  .brand { width: 148px; min-height: 44px; padding: 3px 5px; }
+  .brand-logo { width: 136px; }
+  .loading-brand { padding: 7px 10px; margin-bottom: 22px; }
+  .loading-brand-logo { width: 292px; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 560px) {
+  .brand { width: 154px; min-height: 44px; padding: 3px 6px; }
+  .brand-logo { width: 140px; }
+  .loading-brand { margin-bottom: 16px; padding: 5px 9px; }
+  .loading-brand-logo { width: 254px; }
+  .loading-card h2 { margin-top: 14px; }
+}

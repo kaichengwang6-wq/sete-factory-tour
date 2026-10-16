@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#eef1f3">
   <meta name="description" content="塞特精工厂房空间展示：从一层生产现场到夹层参观通道。">
   <title>塞特精工 · 厂房空间展示</title>
-  <link rel="stylesheet" href="./style.css?v=20261015-bgm1">
+  <link rel="stylesheet" href="./style.css?v=20261016-model1">
   <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 </head>
 <body>
@@ -15,7 +15,7 @@
     <div class="vignette" aria-hidden="true"></div>
 
     <header class="topbar interface">
-      <a class="brand" href="./" aria-label="塞特精工首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>塞特精工</strong><small>PRECISION MANUFACTURING</small></span></a>
+      <a class="brand" href="./" aria-label="SAT 塞特精工首页"><img class="brand-logo" src="./assets/sat-logo.png" width="476" height="129" alt="SAT 塞特精工 · Precision Tools"></a>
       <div class="project-label"><span>厂房空间展示</span><i></i><span>01 / 生产与参观</span></div>
       <div class="auto-tour-state"><span class="live-dot" aria-hidden="true"></span><span id="autoTourStatus" role="status" aria-live="polite">漫游已关闭 · 手动开启</span></div>
       <button class="stage-menu-button" id="stageMenuButton" aria-controls="stageGuide" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>选择空间</span></button>
@@ -70,10 +70,10 @@
 
     <div class="loading-screen" id="loadingScreen" role="status" aria-live="polite">
       <img class="loading-poster" src="./assets/reference-aerial.jpg" alt="原方案厂房鸟瞰效果图">
-      <div class="loading-wash"></div><div class="loading-card"><div class="loading-monogram">ST</div><span class="eyebrow">SETE · PRECISION MANUFACTURING</span><h2 id="loadingTitle">准备进入精工现场</h2><p id="loadingMessage">正在准备三维场景</p><div class="progress-track"><div id="progressBar"></div></div><span class="loading-note" id="loadingNote">背景为原方案效果图 · 载入后进入实时三维</span><button id="retryButton" class="primary-button" hidden>重新加载</button></div>
+      <div class="loading-wash"></div><div class="loading-card"><div class="loading-brand"><img class="loading-brand-logo" src="./assets/sat-logo.png" width="476" height="129" alt="SAT 塞特精工 · Precision Tools"></div><span class="eyebrow">SAT · PRECISION TOOLS</span><h2 id="loadingTitle">准备进入精工现场</h2><p id="loadingMessage">正在准备三维场景</p><div class="progress-track"><div id="progressBar"></div></div><span class="loading-note" id="loadingNote">背景为原方案效果图 · 载入后进入实时三维</span><button id="retryButton" class="primary-button" hidden>重新加载</button></div>
     </div>
     <dialog id="referenceDialog" class="reference-dialog" aria-labelledby="referenceTitle"><div class="reference-header"><div><span class="eyebrow">DESIGN REFERENCES</span><h2 id="referenceTitle">原方案效果图</h2><p>用于空间氛围与材质参考，以下图片并非网页三维实景截图。</p></div><button id="closeReference" class="icon-button" aria-label="关闭设计参考">×</button></div><div class="reference-tabs"><button class="active" data-reference="aerial">厂房鸟瞰</button><button data-reference="workshop">生产车间</button><button data-reference="window">观察窗界面</button></div><img id="referenceImage" src="./assets/reference-aerial.jpg" alt="原方案厂房鸟瞰效果图"><p class="reference-caption" id="referenceCaption">左侧大体量厂房为本次展示主体。</p></dialog>
   </main>
-  <script type="module" src="./tour.js?v=20261015-delivery2"></script>
+  <script type="module" src="./tour.js?v=20261016-model1"></script>
 </body>
 </html>
